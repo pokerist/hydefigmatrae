@@ -255,14 +255,45 @@ pip install numpy==1.26.2 -q
 
 # Install cmake (build dependency)
 echo "   [2/5] Installing cmake..."
-pip install cmake -q
+pip install cmake -q || true
+# Verify cmake Python package; if missing, force reinstall. If still missing, remove broken venv cmake shim to use system cmake.
+python - <<'PY'
+try:
+    import cmake  # type: ignore
+    print('   ✓ cmake Python package available')
+except Exception:
+    print('   ⚠️ cmake Python package import failed, attempting force reinstall...')
+    import subprocess, sys
+    r = subprocess.run([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'cmake', '-q'])
+    try:
+        import cmake  # type: ignore
+        print('   ✓ cmake Python package reinstalled')
+    except Exception:
+        print('   ⚠️ cmake still not importable; falling back to system cmake and removing venv shim')
+        import os
+        venv_cmake = os.path.join(os.path.dirname(sys.executable), 'cmake')
+        try:
+            os.remove(venv_cmake)
+        except Exception:
+            pass
+PY
 
 # Install dlib (this is the slow one)
 echo "   [3/5] Installing dlib (this takes time)..."
-pip install dlib -q || {
+pip install dlib==19.24.4 -q || {
     print_warning "dlib installation from pip failed, trying compilation..."
-    pip install dlib --no-cache-dir
+    pip install dlib==19.24.4 --no-cache-dir || print_error "dlib installation failed. Ensure cmake and build tools are available."
 }
+# Verify dlib import before proceeding
+python - <<'PY'
+try:
+    import dlib  # type: ignore
+    print('   ✓ dlib import verified')
+except Exception as e:
+    import sys
+    print('   ✗ dlib import failed:', e)
+    sys.exit(1)
+PY
 
 # Install face_recognition
 echo "   [4/5] Installing face_recognition..."
