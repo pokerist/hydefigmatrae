@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - HydePark Sync{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>Total Workers</h3>
+        <div class="value">{{ total_workers }}</div>
+    </div>
+    
+    <div class="stat-card success">
+        <h3>Approved Workers</h3>
+        <div class="value">{{ approved_workers }}</div>
+    </div>
+    
+    <div class="stat-card error">
+        <h3>Blocked Workers</h3>
+        <div class="value">{{ blocked_workers }}</div>
+    </div>
+    
+    <div class="stat-card">
+        <h3>Total API Requests</h3>
+        <div class="value">{{ stats.total_requests }}</div>
+    </div>
+    
+    <div class="stat-card success">
+        <h3>Success Rate</h3>
+        <div class="value">{{ "%.1f"|format(stats.success_rate) }}%</div>
+    </div>
+    
+    <div class="stat-card error">
+        <h3>Failed Requests</h3>
+        <div class="value">{{ stats.failed_requests }}</div>
+    </div>
+    
+    <div class="stat-card">
+        <h3>Avg Response Time</h3>
+        <div class="value">{{ "%.0f"|format(stats.avg_duration) }}ms</div>
+    </div>
+    
+    <div class="stat-card">
+        <h3>System Status</h3>
+        <div class="value">
+            <span class="status-indicator online"></span>
+            Online
+        </div>
+    </div>
+</div>
+
+{% if important_logs %}
+<div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; margin-bottom: 30px;">
+    <h2 style="color: white; border-bottom: 2px solid rgba(255,255,255,0.3); padding-bottom: 10px; margin-bottom: 20px;">
+        🎯 Important Events (Events with Worker Data)
+    </h2>
+    <table>
+        <thead>
+            <tr style="background: rgba(0,0,0,0.2);">
+                <th style="color: white;">Timestamp</th>
+                <th style="color: white;">Event Count</th>
+                <th style="color: white;">Event Types</th>
+                <th style="color: white;">Duration</th>
+                <th style="color: white;">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in important_logs %}
+            <tr style="background: rgba(255,255,255,0.1); border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <td style="color: white;">{{ log.timestamp[:19] }}</td>
+                <td style="color: white;">
+                    <span style="background: rgba(255,255,255,0.3); padding: 5px 10px; border-radius: 5px; font-weight: bold;">
+                        {{ log.event_count }} event(s)
+                    </span>
+                </td>
+                <td style="color: white;">
+                    {% for event_type in log.event_types %}
+                        <span style="background: rgba(255,255,255,0.2); padding: 3px 8px; border-radius: 3px; margin-right: 5px; display: inline-block; margin-bottom: 3px;">
+                            {{ event_type }}
+                        </span>
+                    {% endfor %}
+                </td>
+                <td style="color: white;">{{ log.duration_ms }}ms</td>
+                <td>
+                    <button onclick="showEventDetails({{ log.response_body.events | tojson }})" class="btn" style="background: white; color: #667eea; padding: 5px 15px;">
+                        View Details
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<div class="card">
+    <h2>Recent API Requests</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>API</th>
+                <th>Endpoint</th>
+                <th>Status</th>
+                <th>Duration</th>
+                <th>Events</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in recent_logs %}
+            <tr {% if log.has_events %}style="background: #f0f9ff; font-weight: 500;"{% endif %}>
+                <td>{{ log.timestamp[:19] }}</td>
+                <td>
+                    {% if log.api_target == 'supabase' %}
+                    <span class="badge info">Supabase</span>
+                    {% else %}
+                    <span class="badge warning">HikCentral</span>
+                    {% endif %}
+                </td>
+                <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    {{ log.endpoint }}
+                </td>
+                <td>
+                    {% if log.success %}
+                    <span class="badge success">{{ log.status_code }}</span>
+                    {% else %}
+                    <span class="badge error">{{ log.status_code }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ log.duration_ms }}ms</td>
+                <td>
+                    {% if log.has_events %}
+                        <span class="badge" style="background: #10b981; color: white;">
+                            {{ log.event_count }} event(s)
+                        </span>
+                    {% else %}
+                        <span style="color: #999;">-</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" style="text-align: center; color: #999;">No recent requests</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div style="margin-top: 20px;">
+        <a href="/logs" class="btn">View All Logs</a>
+    </div>
+</div>
+
+<!-- Event Details Modal -->
+<div id="eventModal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.7);">
+    <div style="background-color: #fefefe; margin: 5% auto; padding: 30px; border-radius: 10px; max-width: 800px; max-height: 80vh; overflow-y: auto;">
+        <span onclick="closeEventModal()" style="color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
+        <h2 style="margin-top: 0;">Event Details</h2>
+        <div id="eventContent"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-refresh stats every 30 seconds
+    setInterval(function() {
+        fetch('/api/stats')
+            .then(response => response.json())
+            .then(data => {
+                // Update stats without full page reload
+                console.log('Stats updated:', data);
+            });
+    }, 30000);
+    
+    // Show event details modal
+    function showEventDetails(events) {
+        const modal = document.getElementById('eventModal');
+        const content = document.getElementById('eventContent');
+        
+        let html = '';
+        events.forEach((event, index) => {
+            html += `
+                <div style="border: 1px solid #e0e0e0; padding: 20px; margin-bottom: 20px; border-radius: 8px; background: #f9fafb;">
+                    <h3 style="margin-top: 0; color: #667eea;">Event ${index + 1}: ${event.type}</h3>
+                    <p><strong>Event ID:</strong> ${event.id}</p>
+                    <p><strong>Actor:</strong> ${event.actor}</p>
+                    <p><strong>Timestamp:</strong> ${event.timestamp}</p>
+                    <p><strong>Workers Count:</strong> ${event.workersCount || 0}</p>
+                    
+                    ${event.workers ? `
+                        <div style="margin-top: 15px;">
+                            <h4 style="margin-bottom: 10px;">Workers:</h4>
+                            ${event.workers.map(w => `
+                                <div style="background: white; padding: 15px; margin-bottom: 10px; border-radius: 5px; border-left: 4px solid #667eea;">
+                                    <p><strong>Name:</strong> ${w.fullName}</p>
+                                    <p><strong>National ID:</strong> ***${w.nationalIdNumber.slice(-4)}</p>
+                                    <p><strong>Status:</strong> <span style="background: ${w.status === 'approved' ? '#10b981' : w.status === 'blocked' ? '#ef4444' : '#fbbf24'}; color: white; padding: 3px 8px; border-radius: 3px;">${w.status}</span></p>
+                                    <p><strong>Unit:</strong> ${w.unit ? w.unit.unitNumber : 'N/A'}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        });
+        
+        content.innerHTML = html;
+        modal.style.display = 'block';
+    }
+    
+    // Close modal
+    function closeEventModal() {
+        document.getElementById('eventModal').style.display = 'none';
+    }
+    
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+        const modal = document.getElementById('eventModal');
+        if (event.target == modal) {
+            modal.style.display = 'none';
+        }
+    }
+</script>
+{% endblock %}

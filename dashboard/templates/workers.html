@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Workers - HydePark Sync{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Workers Database</h2>
+    
+    <form method="GET" class="filters">
+        <select name="status">
+            <option value="">All Status</option>
+            <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
+            <option value="blocked" {% if status_filter == 'blocked' %}selected{% endif %}>Blocked</option>
+            <option value="deleted" {% if status_filter == 'deleted' %}selected{% endif %}>Deleted</option>
+        </select>
+        
+        <button type="submit" class="btn">Filter</button>
+        <a href="/workers" class="btn secondary">Clear</a>
+    </form>
+    
+    <div style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>National ID</th>
+                    <th>Full Name</th>
+                    <th>Phone</th>
+                    <th>Status</th>
+                    <th>HikCentral ID</th>
+                    <th>Privilege Access</th>
+                    <th>Created At</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for worker in workers %}
+                <tr>
+                    <td>{{ worker.nationalIdNumber }}</td>
+                    <td>{{ worker.fullName }}</td>
+                    <td>{{ worker.phoneNumber }}</td>
+                    <td>
+                        {% if worker.status == 'approved' %}
+                        <span class="badge success">Approved</span>
+                        {% elif worker.status == 'blocked' %}
+                        <span class="badge error">Blocked</span>
+                        {% elif worker.status == 'deleted' %}
+                        <span class="badge">Deleted</span>
+                        {% else %}
+                        <span class="badge warning">{{ worker.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ worker.hikcentral_person_id or '-' }}</td>
+                    <td>
+                        {% if worker.has_privilege_access %}
+                        <span class="badge success">✓ Yes</span>
+                        {% else %}
+                        <span class="badge error">✗ No</span>
+                        {% endif %}
+                    </td>
+                    <td style="white-space: nowrap;">{{ worker.created_at[:19] if worker.created_at else '-' }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="text-align: center; color: #999;">No workers found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div style="margin-top: 20px; color: #666;">
+        <p>Total workers: {{ workers|length }}</p>
+    </div>
+</div>
+{% endblock %}

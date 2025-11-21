@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Request Logs - HydePark Sync{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>API Request Logs</h2>
+    
+    <form method="GET" class="filters">
+        <select name="api_target">
+            <option value="">All APIs</option>
+            <option value="supabase" {% if filters.api_target == 'supabase' %}selected{% endif %}>Supabase</option>
+            <option value="hikcentral" {% if filters.api_target == 'hikcentral' %}selected{% endif %}>HikCentral</option>
+        </select>
+        
+        <select name="success">
+            <option value="">All Status</option>
+            <option value="true" {% if filters.success == 'true' %}selected{% endif %}>Success Only</option>
+            <option value="false" {% if filters.success == 'false' %}selected{% endif %}>Failed Only</option>
+        </select>
+        
+        <input type="text" name="endpoint" placeholder="Filter by endpoint..." value="{{ filters.endpoint }}">
+        
+        <select name="limit">
+            <option value="50" {% if filters.limit == 50 %}selected{% endif %}>50 results</option>
+            <option value="100" {% if filters.limit == 100 %}selected{% endif %}>100 results</option>
+            <option value="250" {% if filters.limit == 250 %}selected{% endif %}>250 results</option>
+            <option value="500" {% if filters.limit == 500 %}selected{% endif %}>500 results</option>
+        </select>
+        
+        <button type="submit" class="btn">Filter</button>
+        <a href="/logs" class="btn secondary">Clear</a>
+        <a href="/export/logs" class="btn">Export CSV</a>
+        <a href="/export/logs/json" class="btn">Export JSON</a>
+    </form>
+    
+    <div style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>API Target</th>
+                    <th>Endpoint</th>
+                    <th>Method</th>
+                    <th>Status</th>
+                    <th>Duration</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr {% if not log.success %}style="background: #fff5f5;"{% endif %}>
+                    <td style="white-space: nowrap;">{{ log.timestamp[:19] }}</td>
+                    <td>
+                        {% if log.api_target == 'supabase' %}
+                        <span class="badge info">Supabase</span>
+                        {% else %}
+                        <span class="badge warning">HikCentral</span>
+                        {% endif %}
+                    </td>
+                    <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        {{ log.endpoint }}
+                    </td>
+                    <td><span class="badge">{{ log.method }}</span></td>
+                    <td>
+                        {% if log.success %}
+                        <span class="badge success">{{ log.status_code }}</span>
+                        {% else %}
+                        <span class="badge error">{{ log.status_code }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ log.duration_ms }}ms</td>
+                    <td>
+                        <button class="btn" onclick="showDetails('{{ log.id }}')">Details</button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="text-align: center; color: #999;">No logs found</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal for log details -->
+<div id="detailsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+    <div style="background: white; margin: 50px auto; max-width: 800px; border-radius: 8px; max-height: 80vh; overflow-y: auto;">
+        <div style="padding: 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
+            <h2>Request Details</h2>
+            <button class="btn secondary" onclick="closeDetails()">Close</button>
+        </div>
+        <div id="detailsContent" style="padding: 20px;">
+            Loading...
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const logs = {{ logs | tojson | safe }};
+    
+    function showDetails(logId) {
+        const log = logs.find(l => l.id === logId);
+        if (!log) return;
+        
+        const content = `
+            <div style="margin-bottom: 20px;">
+                <h3>Request Information</h3>
+                <p><strong>Timestamp:</strong> ${log.timestamp}</p>
+                <p><strong>API Target:</strong> ${log.api_target}</p>
+                <p><strong>Endpoint:</strong> ${log.endpoint}</p>
+                <p><strong>Method:</strong> ${log.method}</p>
+                <p><strong>Status Code:</strong> ${log.status_code}</p>
+                <p><strong>Duration:</strong> ${log.duration_ms}ms</p>
+                ${log.error ? `<p><strong>Error:</strong> <span style="color: #e74c3c;">${log.error}</span></p>` : ''}
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <h3>Request Headers</h3>
+                <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto;">${JSON.stringify(log.headers, null, 2)}</pre>
+            </div>
+            
+            ${log.body ? `
+            <div style="margin-bottom: 20px;">
+                <h3>Request Body</h3>
+                <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto;">${JSON.stringify(log.body, null, 2)}</pre>
+            </div>
+            ` : ''}
+            
+            <div style="margin-bottom: 20px;">
+                <h3>Response</h3>
+                <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto;">${typeof log.response_body === 'object' ? JSON.stringify(log.response_body, null, 2) : log.response_body}</pre>
+            </div>
+        `;
+        
+        document.getElementById('detailsContent').innerHTML = content;
+        document.getElementById('detailsModal').style.display = 'block';
+    }
+    
+    function closeDetails() {
+        document.getElementById('detailsModal').style.display = 'none';
+    }
+    
+    // Close modal when clicking outside
+    document.getElementById('detailsModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeDetails();
+        }
+    });
+</script>
+{% endblock %}

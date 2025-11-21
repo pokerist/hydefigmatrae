@@ -1,0 +1,17 @@
+[Unit]
+Description=HydePark Sync Service - Supabase to HikCentral Synchronization
+After=network.target
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=/opt/hydepark-sync
+Environment="PATH=/opt/hydepark-sync/venv/bin"
+ExecStart=/opt/hydepark-sync/venv/bin/python /opt/hydepark-sync/main.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
