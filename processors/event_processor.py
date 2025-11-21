@@ -264,7 +264,6 @@ class EventProcessor:
             family_name = name_parts[0] if name_parts else ''
             given_name = name_parts[1] if len(name_parts) > 1 else ''
             
-            # Use previously resolved worker_id
             
             # Add person to HikCentral
             logger.info(f"Adding person to HikCentral: {national_id} (Worker ID: {worker_id})")

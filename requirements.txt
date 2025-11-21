@@ -14,10 +14,11 @@ pyjwt==2.8.0
 # Image processing
 Pillow==10.1.0
 numpy==1.26.4
-opencv-python==4.8.1.78
+opencv-python-headless==4.8.1.78
 
 # Face recognition - critical order
 face-recognition==1.3.0
 face-recognition-models==0.3.0
 dlib==19.24.4
 cmake
+setuptools<81

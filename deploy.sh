@@ -244,8 +244,10 @@ source venv/bin/activate
 
 print_step "Installing Python packages (this will take 5-10 minutes)..."
 
-# Upgrade pip first
-pip install --upgrade pip setuptools wheel -q
+# Upgrade pip and wheel first
+pip install --upgrade pip wheel -q
+# Pin setuptools to avoid pkg_resources deprecation issues
+pip install 'setuptools<81' -q
 
 # Install numpy first (required for other packages)
 echo "   [1/5] Installing numpy..."
@@ -288,9 +290,15 @@ else
     fi
 fi
 
+# Install OpenCV (headless) explicitly for servers
+echo "   Installing OpenCV (headless)..."
+pip install opencv-python-headless==4.8.1.78 -q
+
 # Install remaining dependencies
 echo "   Installing remaining packages..."
-pip install -r requirements.txt -q 2>/dev/null || true
+pip install -r requirements.txt -q || {
+    print_error "Failed to install Python requirements."
+}
 
 # Verify critical imports
 echo "   Verifying installation..."
