@@ -268,19 +268,28 @@ pip install dlib -q || {
 echo "   [4/5] Installing face_recognition..."
 pip install face-recognition -q
 
-# Install face_recognition_models - try PyPI first, then GitHub
 echo "   [5/5] Installing face recognition models (this may take 1-2 minutes)..."
 echo "        Please wait, downloading models..."
 
-# Try PyPI first (faster)
-if pip install face-recognition-models --no-cache-dir 2>&1 | grep -q "Successfully installed"; then
-    print_success "Models installed from PyPI"
+if pip install face-recognition-models==0.3.0 --no-cache-dir; then
+    python -c "import face_recognition_models" >/dev/null 2>&1 && print_success "Models installed from PyPI" || {
+        echo "        Import failed, trying GitHub repository..."
+        if pip install git+https://github.com/ageitgey/face_recognition_models; then
+            print_success "Models installed from GitHub"
+        else
+            echo "        GitHub failed, trying direct download..."
+            pip install https://github.com/ageitgey/face_recognition_models/archive/master.zip || {
+                print_warning "Could not install face_recognition_models automatically."
+                print_warning "The system will work but face detection may be limited."
+                print_warning "You can install it later with: pip install face-recognition-models"
+            }
+        fi
+    }
 else
-    echo "        PyPI failed, trying GitHub repository..."
-    if pip install git+https://github.com/ageitgey/face_recognition_models 2>&1 | grep -q "Successfully installed"; then
+    echo "        PyPI install failed, trying GitHub repository..."
+    if pip install git+https://github.com/ageitgey/face_recognition_models; then
         print_success "Models installed from GitHub"
     else
-        # Last resort: try without git
         echo "        GitHub failed, trying direct download..."
         pip install https://github.com/ageitgey/face_recognition_models/archive/master.zip || {
             print_warning "Could not install face_recognition_models automatically."
