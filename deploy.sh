@@ -239,7 +239,7 @@ print_success "Application files copied"
 print_step "Setting up Python virtual environment..."
 
 cd $APP_DIR
-python3 -m venv venv
+python3 -m venv venv --system-site-packages
 source venv/bin/activate
 
 print_step "Installing Python packages (this will take 5-10 minutes)..."
@@ -253,38 +253,22 @@ pip install 'setuptools<81' -q
 echo "   [1/5] Installing numpy..."
 pip install numpy==1.26.2 -q
 
-# Install cmake (build dependency)
-echo "   [2/5] Installing cmake..."
-pip install cmake -q || true
-# Verify cmake Python package; if missing, force reinstall. If still missing, remove broken venv cmake shim to use system cmake.
-python - <<'PY'
-try:
-    import cmake  # type: ignore
-    print('   ✓ cmake Python package available')
-except Exception:
-    print('   ⚠️ cmake Python package import failed, attempting force reinstall...')
-    import subprocess, sys
-    r = subprocess.run([sys.executable, '-m', 'pip', 'install', '--force-reinstall', 'cmake', '-q'])
-    try:
-        import cmake  # type: ignore
-        print('   ✓ cmake Python package reinstalled')
-    except Exception:
-        print('   ⚠️ cmake still not importable; falling back to system cmake and removing venv shim')
-        import os
-        venv_cmake = os.path.join(os.path.dirname(sys.executable), 'cmake')
-        try:
-            os.remove(venv_cmake)
-        except Exception:
-            pass
-PY
+echo "   [2/5] Checking system cmake..."
+if command -v cmake >/dev/null 2>&1; then
+    echo "   ✓ system cmake available: $(cmake --version | head -n1)"
+    # Ensure venv does not shadow system cmake
+    rm -f "$(dirname $(which python))/cmake" 2>/dev/null || true
+else
+    print_error "System cmake not found. Please ensure cmake is installed via apt."
+fi
 
 # Install dlib (this is the slow one)
 echo "   [3/5] Installing dlib (this takes time)..."
-pip install dlib==19.24.4 -q || {
-    print_warning "dlib installation from pip failed, trying compilation..."
-    pip install dlib==19.24.4 --no-cache-dir || print_error "dlib installation failed. Ensure cmake and build tools are available."
-}
-# Verify dlib import before proceeding
+if ! pip install dlib==19.24.4 -q; then
+    print_warning "pip dlib install failed, attempting apt package..."
+    sudo apt-get install -y python3-dlib || print_error "Failed to install python3-dlib via apt."
+fi
+# Verify dlib import before proceeding (venv has system site packages enabled)
 python - <<'PY'
 try:
     import dlib  # type: ignore
