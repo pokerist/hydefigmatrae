@@ -11,6 +11,8 @@ APP_DIR="/opt/$APP_NAME"
 SERVICE_NAME="$APP_NAME.service"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 USER=$(whoami)
+# Dashboard port (default), will be overridden from config.py if available
+DASHBOARD_PORT=${DASHBOARD_PORT:-8080}
 
 # Colors for output
 RED='\033[0;31m'
@@ -417,7 +419,7 @@ RETRY_COUNT=0
 PORT_READY=false
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if sudo lsof -i:$DASHBOARD_PORT | grep LISTEN &> /dev/null; then
+    if sudo lsof -iTCP:$DASHBOARD_PORT -sTCP:LISTEN &> /dev/null; then
         PORT_READY=true
         break
     fi
@@ -503,3 +505,8 @@ echo ""
 
 print_success "System is ready to use!"
 echo ""
+# Try to read dashboard port from config.py in repo
+PORT_FROM_CONFIG=$(python3 -c "import sys; sys.path.insert(0, '$REPO_DIR');\nfrom config import Config;\nprint(getattr(Config, 'DASHBOARD_PORT', 8080))" 2>/dev/null || echo "")
+if [ -n "$PORT_FROM_CONFIG" ]; then
+    DASHBOARD_PORT="$PORT_FROM_CONFIG"
+fi
