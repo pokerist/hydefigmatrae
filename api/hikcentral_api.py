@@ -81,7 +81,7 @@ class HikCentralAPI:
         string_to_sign = '\n'.join(parts)
         
         # Log for debugging
-        logger.debug(f"String to sign:\n{string_to_sign}")
+        logger.info(f"String to sign:\n{string_to_sign}")
         
         # Generate HMAC-SHA256 signature
         signature = hmac.new(
@@ -144,7 +144,7 @@ class HikCentralAPI:
             Response data or None on error
         """
         url = f"{self.base_url}{endpoint}"
-        body_str = json.dumps(body, ensure_ascii=False) if body else ""
+        body_str = json.dumps(body, ensure_ascii=True, separators=(",", ":")) if body else ""
         
         headers = self._get_authenticated_headers(body_str if body else None)
         
